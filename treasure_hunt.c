@@ -5,19 +5,31 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <string.h>
 
 #define MATRIX_ROW_COUNT 100
 #define MATRIX_COL_COUNT 1000
+
+int find(int *array, int len, int val) {
+    for (int i = 0; i < len; ++i) {
+        if (array[i] == val) {
+            return i;
+        }
+    }
+    return -1; // didn't find anything
+}
 
 int main() {
     srand(time(NULL)); // Seed rand()
 
     int matrix[MATRIX_ROW_COUNT][MATRIX_COL_COUNT]; // Initialize matrix
+    memset(matrix, 0, sizeof(matrix));
+
     int row = rand() % MATRIX_ROW_COUNT;
     int col = rand() % MATRIX_COL_COUNT; // Get a random x,y position
     matrix[row][col] = 1; // y = row, x = col
 
-    printf("Matrix generated with treasure at row %d, column %d.\n", row, col);
+    printf("Matrix generated with treasure at row %d, column %d\n", row, col);
 
     pid_t pid_row_map[MATRIX_ROW_COUNT];
 
@@ -32,12 +44,12 @@ int main() {
             }
             exit(EXIT_FAILURE);
         } else if (pid < 0) {
-            perror("There was an error creating fork.");
-            exit(EXIT_FAILURE);
+            perror("There was an error creating fork");
+            return -1;
         }
         // Parent process
-        pid_row_map[pid] = i;
-        printf("Child process of PID %d is searching row %d.\n", pid, i);
+        pid_row_map[i] = pid;
+        printf("Child process of PID %d is searching row %d\n", pid, i);
     }
 
     int remaining = MATRIX_ROW_COUNT;
@@ -46,12 +58,23 @@ int main() {
         pid_t pid = wait(&status);
         int exit_status = WEXITSTATUS(status);
         if (exit_status == EXIT_SUCCESS) {
-            printf("Treasure found by process with PID %d on row %d\n", pid, pid_row_map[pid]);
+            int found_row = find(pid_row_map, sizeof(pid_row_map), pid);
+            int found_column = -1;
+            for (int i = 0; i < MATRIX_COL_COUNT; ++i) {
+                if (matrix[found_row][i] == 1) {
+                    found_column = i;
+                }
+            }
+            if (found_column == -1) {
+                perror("Something went wrong, found_column should not be -1");
+                return 1;
+            }
+            printf("Treasure found by process with PID %d on row %d, column %d\n", pid, found_row, found_column);
         }
         --remaining;
     }
 
-    puts("All processes have closed.");
+    puts("All processes have closed");
 
     return 0;
 }
