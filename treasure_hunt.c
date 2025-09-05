@@ -58,7 +58,7 @@ int main() {
         pid_t pid = wait(&status);
         int exit_status = WEXITSTATUS(status);
         if (exit_status == EXIT_SUCCESS) {
-            int found_row = find(pid_row_map, sizeof(pid_row_map), pid);
+            int found_row = find(pid_row_map, sizeof(pid_row_map) / sizeof(int), pid);
             int found_column = -1;
             for (int i = 0; i < MATRIX_COL_COUNT; ++i) {
                 if (matrix[found_row][i] == 1) {
