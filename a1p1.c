@@ -49,7 +49,6 @@ int main() {
         }
         // Parent process
         pid_row_map[i] = pid;
-        printf("Child process of PID %d is searching row %d\n", pid, i);
     }
 
     int remaining = MATRIX_ROW_COUNT;
@@ -69,12 +68,10 @@ int main() {
                 perror("Something went wrong, found_column should not be -1");
                 return 1;
             }
-            printf("Treasure found by process with PID %d on row %d, column %d\n", pid, found_row, found_column);
+            printf("The treasure was found by child with PID %d at row %d, column %d", pid, found_row, found_column);
         }
         --remaining;
     }
-
-    puts("All processes have closed");
 
     return 0;
 }
