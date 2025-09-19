@@ -6,11 +6,12 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define MATRIX_ROW_COUNT 100
 #define MATRIX_COL_COUNT 1000
 
-int find(int *array, int len, int val) {
+int find(pid_t *array, int len, pid_t val) {
     for (int i = 0; i < len; ++i) {
         if (array[i] == val) {
             return i;
@@ -19,17 +20,37 @@ int find(int *array, int len, int val) {
     return -1; // didn't find anything
 }
 
-int main() {
-    srand(time(NULL)); // Seed rand()
-
+int main(int argc, char **argv) {
     int matrix[MATRIX_ROW_COUNT][MATRIX_COL_COUNT]; // Initialize matrix
     memset(matrix, 0, sizeof(matrix));
 
-    int row = rand() % MATRIX_ROW_COUNT;
-    int col = rand() % MATRIX_COL_COUNT; // Get a random x,y position
-    matrix[row][col] = 1; // y = row, x = col
+    int row = 0;
+    int col = 0;
 
-    printf("Matrix generated with treasure at row %d, column %d\n", row, col);
+    int c;
+    bool found = false;
+    while ((c = fgetc(stdin)) != EOF) {
+        switch (c) {
+            case '0':
+            ++col;
+            break;
+
+            case '\n': // input files from D2L end with LF so this should suffice
+            ++row;
+            col = 0;
+            break;
+
+            case ' ':
+            break;
+
+            case '1': // found the treasure location
+            found = true;
+        }
+        if (found) {
+            matrix[row][col] = 1; // y = row, x = col
+            break;
+        }
+    }
 
     pid_t pid_row_map[MATRIX_ROW_COUNT];
 
@@ -52,6 +73,7 @@ int main() {
     }
 
     int remaining = MATRIX_ROW_COUNT;
+    bool success;
     while (remaining != 0) {
         int status;
         pid_t pid = wait(&status);
@@ -65,13 +87,16 @@ int main() {
                 }
             }
             if (found_column == -1) {
-                perror("Something went wrong, found_column should not be -1");
+                perror("Something went wrong, found_column should not be -1! Aborting.");
                 return 1;
             }
-            printf("The treasure was found by child with PID %d at row %d, column %d", pid, found_row, found_column);
+            printf("The treasure was found by child with PID %d at row %d, column %d\n", pid, found_row, found_column);
+            success = true;
         }
         --remaining;
     }
+
+    if (!success) printf("No treasure was found in the matrix\n");
 
     return 0;
 }
