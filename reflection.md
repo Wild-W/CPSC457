@@ -1,5 +1,7 @@
 # Assignment 1 Reflection
 
+Github repository link: https://github.com/Wild-W/CPSC457
+
 ## Part 1
 
 ### What were the most challenging aspects to you of this program and how did you tackle them?
