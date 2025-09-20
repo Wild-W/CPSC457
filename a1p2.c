@@ -38,11 +38,11 @@ int main(int argc, char **argv)
     }
 
     long total = upper - lower + 1;
-    long M = (N_in > total) ? total : N_in; // final number of children
-    long max_block = (total / M) + (total % M);
+    long N_final = (N_in > total) ? total : N_in; // final number of children
+    long max_block = (total / N_final) + (total % N_final);
 
-    // [counts[M]] [data[M * max_block]]
-    size_t ints_needed = (size_t)M + (size_t)M * (size_t)max_block;
+    // [counts[N_final]] [data[N_final * max_block]]
+    size_t ints_needed = (size_t)N_final + (size_t)N_final * (size_t)max_block;
     size_t shm_bytes = ints_needed * sizeof(int);
 
     int shmid = shmget(IPC_PRIVATE, shm_bytes, IPC_CREAT | 0666);
@@ -54,15 +54,15 @@ int main(int argc, char **argv)
         return 1;
 
     int *counts = shm;
-    int *data = shm + M;
+    int *data = shm + N_final;
 
-    for (long i = 0; i < M; ++i)
+    for (long i = 0; i < N_final; ++i)
         counts[i] = 0;
 
-    for (long i = 0; i < M; ++i)
+    for (long i = 0; i < N_final; ++i)
     {
-        long start = lower + i * (total / M);
-        long end = (i == M - 1) ? upper : (start + (total / M) - 1);
+        long start = lower + i * (total / N_final);
+        long end = (i == N_final - 1) ? upper : (start + (total / N_final) - 1);
 
         pid_t pid = fork();
         if (pid == 0)
@@ -83,11 +83,11 @@ int main(int argc, char **argv)
     }
 
     // Wait for all children
-    for (long i = 0; i < M; ++i)
+    for (long i = 0; i < N_final; ++i)
         wait(NULL);
 
     puts("\nParent: All children finished. Primes found:");
-    for (long i = 0; i < M; ++i)
+    for (long i = 0; i < N_final; ++i)
     {
         int cnt = counts[i];
         int *this_block = data + (i * (long)max_block);
