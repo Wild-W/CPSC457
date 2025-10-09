@@ -26,6 +26,7 @@ typedef struct {
 } ResultsDetails;
 
 typedef struct {
+    int scheduler_latency;
     double throughput;
     double avg_waiting_time;
     double avg_turnaround_time;
@@ -72,4 +73,62 @@ int read_csv(const char *filename, Process processes[]) {
     
     fclose(file);
     return count;
+}
+
+int write_fcfs_results_details_csv(const char *filename,
+                                   const ResultsDetails *rows,
+                                   int count)
+{
+    if (!filename || !rows || count < 0) return -1;
+
+    FILE *f = fopen(filename, "w");
+    if (!f) {
+        printf("Error: Could not open %s\n", filename);
+        return -1;
+    }
+
+    fprintf(f, "Scheduler_Latency,Pid,Arrival Time,Start Time,Finish Time,Turnaround Time,Waiting Time,Response Time\n");
+
+    for (int i = 0; i < count; i++) {
+        const ResultsDetails *r = &rows[i];
+        fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d\n",
+                r->scheduler_latency,
+                r->pid,
+                r->arrival_time,
+                r->start_time,
+                r->finish_time,
+                r->turnaround_time,
+                r->waiting_time,
+                r->response_time);
+    }
+
+    fclose(f);
+    return 0;
+}
+
+int write_fcfs_results_csv(const char *filename,
+                           const Results *rows,
+                           int count)
+{
+    if (!filename || !rows || count < 0) return -1;
+
+    FILE *f = fopen(filename, "w");
+    if (!f) {
+        printf("Error: Could not open %s\n", filename);
+        return -1;
+    }
+
+    fprintf(f, "Scheduler_Latency,Throughput,Avg_Waiting_Time,Avg_Turnaround_Time,Avg_Response_Time\n");
+
+    for (int i = 0; i < count; i++) {
+        fprintf(f, "%d,%.6f,%.2f,%.2f,%.2f\n",
+                rows[i].scheduler_latency,
+                rows[i].throughput,
+                rows[i].avg_waiting_time,
+                rows[i].avg_turnaround_time,
+                rows[i].avg_response_time);
+    }
+
+    fclose(f);
+    return 0;
 }
