@@ -1,3 +1,4 @@
+/* csv.h */
 #ifndef CSV_H
 #define CSV_H
 
@@ -28,8 +29,8 @@ typedef struct {
     double avg_response_time;
 } Results;
 
-int read_processes_csv(const char *filename, Process *out, int max_count);
-int write_fcfs_details_csv(const char *filename, const ResultsDetails *rows, int count);
-int write_fcfs_results_csv(const char *filename, const Results *rows, const int *scheduler_latencies, int count);
+int read_processes_csv(const char *filename, Process *out);
+int write_fcfs_results_details_csv(const char *filename, const ResultsDetails *rows, int count);
+int write_fcfs_results_csv(const char *filename, const Results *rows, const int *latencies, int count);
 
 #endif /* CSV_H */
