@@ -73,16 +73,16 @@ int main(void) {
             continue;
         }
 
-        int which = 0; /* 0=q1,1=q2,2=q3 */
+        int which = 0; // 0=q1,1=q2,2=q3
         if (!q_empty(&q1)) which = 0;
         else if (!q_empty(&q2)) which = 1;
         else which = 2;
 
         int i = (which==0) ? q_pop(&q1) : (which==1) ? q_pop(&q2) : q_pop(&q3);
 
+        if (first[i] < 0) first[i] = t;
         t += RR_LATENCY;
         dispatches[i]++;
-        if (first[i] < 0) first[i] = t;
 
         int run = 0;
         if (which == 0) { run = (rem[i] < Q1_Q ? rem[i] : Q1_Q); }
@@ -111,8 +111,7 @@ int main(void) {
         int turnaround = finish[i] - procs[i].arrival_time;
         int total_latency = dispatches[i] * RR_LATENCY;
         int waiting = turnaround - procs[i].burst_length - total_latency;
-
-        int response = (first[i] - procs[i].arrival_time) + procs[i].time_until_first_response;
+        int response = first[i] - procs[i].arrival_time;
 
         sumW += waiting;
         sumTA += turnaround;
@@ -128,7 +127,13 @@ int main(void) {
     puts("Throughput,Avg_Waiting_Time,Avg_Turnaround_Time,Avg_Response_Time");
     printf("%.6f,%.2f,%.2f,%.2f\n", throughput, avgW, avgTA, avgR);
 
-    q_free(&q1); q_free(&q2); q_free(&q3);
-    free(rem); free(first); free(dispatches); free(finish); free(procs);
+    q_free(&q1);
+    q_free(&q2);
+    q_free(&q3);
+    free(rem);
+    free(first);
+    free(dispatches);
+    free(finish);
+    free(procs);
     return 0;
 }
