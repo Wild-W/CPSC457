@@ -1,3 +1,6 @@
 a2/fcfs_results_details.csv
 a2/a2p1.c
 a2/fcfs_results.csv
+a2/rr_results_details.csv
+.gitignore
+a2/rr_results.csv

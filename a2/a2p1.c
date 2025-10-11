@@ -1,7 +1,8 @@
-/* a2p1.c */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define CSV_IMPLEMENTATION
 #include "csv.h"
 
 #ifndef MIN_LATENCY
@@ -61,17 +62,11 @@ static void simulate_fcfs_one(const Process *procs_sorted, int n, int L,
     out_agg->avg_response_time = n > 0 ? (double)sum_r / (double)n : 0.0;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("usage: %s <input_csv>\n", argv[0]);
-        return 1;
-    }
-    const char *input_csv = argv[1];
-
+int main() {
     Process *processes = (Process*)malloc(sizeof(Process) * MAX_RECORDS);
     if (!processes) { puts("oom"); return 1; }
 
-    int n = read_processes_csv(input_csv, processes);
+    int n = read_processes_csv(processes);
     if (n <= 0) {
         puts("no records");
         free(processes);
