@@ -69,11 +69,11 @@ int main(int argc, char **argv) {
     const char *input_csv = argv[1];
 
     Process *processes = (Process*)malloc(sizeof(Process) * MAX_RECORDS);
-    if (!processes) { printf("oom\n"); return 1; }
+    if (!processes) { puts("oom"); return 1; }
 
     int n = read_processes_csv(input_csv, processes);
     if (n <= 0) {
-        printf("no records\n");
+        puts("no records");
         free(processes);
         return 1;
     }
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
 
     int latency_count = (MAX_LATENCY >= MIN_LATENCY) ? (MAX_LATENCY - MIN_LATENCY + 1) : 0;
     if (latency_count <= 0) {
-        printf("bad latency range\n");
+        puts("bad latency range");
         free(processes);
         return 1;
     }
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     Results *agg = (Results*)malloc(sizeof(Results) * latency_count);
     int *latencies = (int*)malloc(sizeof(int) * latency_count);
     if (!all_details || !agg || !latencies) {
-        printf("oom\n");
+        puts("oom");
         free(processes); free(all_details); free(agg); free(latencies);
         return 1;
     }
@@ -103,9 +103,11 @@ int main(int argc, char **argv) {
     }
 
     if (write_fcfs_results_details_csv("fcfs_results_details.csv", all_details, n * latency_count) != 0)
-        printf("write details failed\n");
+        puts("write details failed");
     if (write_fcfs_results_csv("fcfs_results.csv", agg, latencies, latency_count) != 0)
-        printf("write results failed\n");
+        puts("write results failed");
+
+    puts("Simulation completed! Process table results saved to fcfs_results_details.csv\nAverage results saved to fcfs_results.csv");
 
     free(processes);
     free(all_details);
