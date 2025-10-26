@@ -140,6 +140,134 @@ static void run_fifo_once(int F, long *faults_out, long *writes_out)
     *writes_out = writes;
 }
 
+// Build position lists for OPT once
+static void build_poslists(PosList pos[MAX_PAGES])
+{
+    static int counts[MAX_PAGES] = {0};
+    for (int i = 0; i < MAX_PAGES; i++)
+    {
+        pos[i].pos = NULL;
+        pos[i].count = 0;
+        counts[i] = 0;
+    }
+    for (int i = 0; i < N; i++)
+        counts[refs[i].page]++;
+    for (int p = 0; p < MAX_PAGES; p++)
+    {
+        if (counts[p])
+        {
+            pos[p].pos = (int *)malloc(sizeof(int) * counts[p]);
+            pos[p].count = counts[p];
+            if (!pos[p].pos)
+                die("OOM");
+            counts[p] = 0; // reuse as fill index
+        }
+    }
+    for (int i = 0; i < N; i++)
+    {
+        int p = refs[i].page;
+        if (pos[p].pos)
+            pos[p].pos[counts[p]++] = i;
+    }
+}
+
+// OPT simulation for one frame count
+static void run_opt_once(int F, const PosList pos[MAX_PAGES], long *faults_out, long *writes_out)
+{
+    Frame fr[MAX_FRAMES] = {0};
+    int used = 0, next_arrival = 0;
+    long faults = 0, writes = 0;
+
+    // per-page pointer to "next occurrence >= current i"
+    static int ptr[MAX_PAGES];
+    for (int p = 0; p < MAX_PAGES; p++)
+        ptr[p] = 0;
+
+    for (int i = 0; i < N; i++)
+    {
+        int pg = refs[i].page, d = refs[i].dirty;
+
+        // ensure ptr[pg] points at first occurrence >= i
+        if (pos[pg].count)
+        {
+            while (ptr[pg] < pos[pg].count && pos[pg].pos[ptr[pg]] < i)
+                ptr[pg]++;
+        }
+
+        int hit = -1;
+        for (int j = 0; j < used; j++)
+            if (fr[j].in_use && fr[j].page == pg)
+            {
+                hit = j;
+                break;
+            }
+
+        if (hit != -1)
+        {
+            if (d)
+                fr[hit].dirty = 1;
+        }
+        else
+        {
+            faults++;
+            if (used < F)
+            {
+                fr[used].page = pg;
+                fr[used].dirty = d;
+                fr[used].arrival = next_arrival++;
+                fr[used].in_use = 1;
+                used++;
+            }
+            else
+            {
+                // choose victim: farthest next use; tie -> smallest arrival (FIFO)
+                int victim = -1;
+                int best_next = -1; // larger is better (farther)
+                for (int j = 0; j < F; j++)
+                {
+                    int p = fr[j].page;
+                    int nx;
+                    if (pos[p].count == 0)
+                        nx = INF_NEXT;
+                    else
+                    {
+                        int k = ptr[p];
+                        // future strictly > i; if equal to i, use k+1
+                        if (k < pos[p].count && pos[p].pos[k] <= i)
+                            k++;
+                        nx = (k < pos[p].count) ? pos[p].pos[k] : INF_NEXT;
+                    }
+                    if (nx > best_next)
+                    {
+                        best_next = nx;
+                        victim = j;
+                    }
+                    else if (nx == best_next)
+                    {
+                        if (fr[j].arrival < fr[victim].arrival)
+                            victim = j; // FIFO tie-break
+                    }
+                }
+                if (fr[victim].dirty)
+                    writes++;
+                fr[victim].page = pg;
+                fr[victim].dirty = d;
+                fr[victim].arrival = next_arrival++;
+                fr[victim].in_use = 1;
+            }
+        }
+
+        // advance ptr for current page beyond i
+        if (pos[pg].count)
+        {
+            if (ptr[pg] < pos[pg].count && pos[pg].pos[ptr[pg]] == i)
+                ptr[pg]++;
+        }
+    }
+    *faults_out = faults;
+    *writes_out = writes;
+}
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -155,6 +283,22 @@ int main(int argc, char **argv)
             run_fifo_once(f, &faults, &writes);
             print_row(f, faults, writes);
         }
+    }
+    else if (strcmp(argv[1], "OPT") == 0)
+    {
+        PosList pos[MAX_PAGES];
+        build_poslists(pos);
+        print_header("OPT");
+        for (int f = 1; f <= 100; f++)
+        {
+            long faults, writes;
+            run_opt_once(f, pos, &faults, &writes);
+            print_row(f, faults, writes);
+        }
+        // free
+        for (int p = 0; p < MAX_PAGES; p++)
+            if (pos[p].pos)
+                free(pos[p].pos);
     }
     else
     {
