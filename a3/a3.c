@@ -7,6 +7,10 @@
 #define MAX_FRAMES 100
 #define INF_NEXT 0x3fffffff
 
+static void print_header_clk(const char *title, const char *varname);
+static void print_row_clk(int var, long faults, long writes);
+static void run_clk_once(int F, int nbits, int mshift, long *faults_out, long *writes_out);
+
 typedef struct
 {
     int page, dirty;
@@ -83,6 +87,20 @@ static void print_row(int frames, long faults, long writes)
 {
     // right-align inside fixed columns
     printf("| %8d | %14ld | %15ld |\n", frames, faults, writes);
+    puts("+----------+----------------+-----------------+");
+}
+
+static void print_header_clk(const char *title, const char *varname)
+{
+    printf("%s\n\n", title);
+    puts("+----------+----------------+-----------------+");
+    printf("| %8s | Page Faults    | Write-backs     |\n", varname);
+    puts("+----------+----------------+-----------------+");
+}
+
+static void print_row_clk(int var, long faults, long writes)
+{
+    printf("| %8d | %14ld | %15ld |\n", var, faults, writes);
     puts("+----------+----------------+-----------------+");
 }
 
@@ -268,6 +286,84 @@ static void run_opt_once(int F, const PosList pos[MAX_PAGES], long *faults_out, 
     *writes_out = writes;
 }
 
+// nbits: size of reference register; mshift: shift interval
+static void run_clk_once(int F, int nbits, int mshift, long *faults_out, long *writes_out)
+{
+    Frame fr[MAX_FRAMES] = {0};
+    unsigned int refreg[MAX_FRAMES] = {0};
+    int used = 0, next_arrival = 0;
+    long faults = 0, writes = 0;
+    int since_shift = 0;
+    unsigned int msb = (nbits >= 32) ? 0x80000000u : (1u << (nbits - 1));
+    unsigned int mask = (nbits >= 32) ? 0xffffffffu : ((1u << nbits) - 1);
+
+    for (int i = 0; i < N; i++)
+    {
+        int pg = refs[i].page, d = refs[i].dirty;
+        int hit = -1;
+
+        for (int j = 0; j < used; j++)
+        {
+            if (fr[j].in_use && fr[j].page == pg)
+            {
+                hit = j;
+                break;
+            }
+        }
+
+        if (hit != -1)
+        {
+            if (d)
+                fr[hit].dirty = 1;
+            refreg[hit] = (refreg[hit] | msb) & mask;
+        }
+        else
+        {
+            faults++;
+            if (used < F)
+            {
+                fr[used].page = pg;
+                fr[used].dirty = d;
+                fr[used].arrival = next_arrival++;
+                fr[used].in_use = 1;
+                refreg[used] = msb; // set reference bit
+                used++;
+            }
+            else
+            {
+                // victim: smallest refreg; tie -> smallest arrival (FIFO)
+                int victim = 0;
+                for (int j = 1; j < F; j++)
+                {
+                    if (refreg[j] < refreg[victim])
+                        victim = j;
+                    else if (refreg[j] == refreg[victim] && fr[j].arrival < fr[victim].arrival)
+                        victim = j;
+                }
+                if (fr[victim].dirty)
+                    writes++;
+                fr[victim].page = pg;
+                fr[victim].dirty = d;
+                fr[victim].arrival = next_arrival++;
+                fr[victim].in_use = 1;
+                refreg[victim] = msb;
+            }
+        }
+
+        // periodic shift after m references
+        since_shift++;
+        if (since_shift == mshift)
+        {
+            for (int j = 0; j < used; j++)
+                refreg[j] >>= 1;
+            since_shift = 0;
+        }
+    }
+
+    *faults_out = faults;
+    *writes_out = writes;
+}
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -299,6 +395,30 @@ int main(int argc, char **argv)
         for (int p = 0; p < MAX_PAGES; p++)
             if (pos[p].pos)
                 free(pos[p].pos);
+    }
+    else if (strcmp(argv[1], "CLK") == 0)
+    {
+        // Part II outputs (fixed frames = 50)
+        const int F = 50;
+        long faults, writes;
+
+        // Table 1: m=10, vary n=1..32
+        print_header_clk("CLK, m=10", "n"); // per spec
+        for (int n = 1; n <= 32; n++)
+        {
+            run_clk_once(F, n, 10, &faults, &writes);
+            print_row_clk(n, faults, writes);
+        }
+
+        printf("\n");
+
+        // Table 2: n=8, vary m=1..100
+        print_header_clk("CLK, n=8", "m"); // per spec
+        for (int m = 1; m <= 100; m++)
+        {
+            run_clk_once(F, 8, m, &faults, &writes);
+            print_row_clk(m, faults, writes);
+        }
     }
     else
     {
